@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
@@ -8,6 +8,6 @@ COPY requirements.txt ./
 
 RUN pip install -r requirements.txt
 
-COPY dltool.py ./
+COPY ./src/ .
 
-ENTRYPOINT ["python", "dltool.py"]
+ENTRYPOINT ["python", "./src/dltool.py"]
