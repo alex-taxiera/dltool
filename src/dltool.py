@@ -1,70 +1,16 @@
 import os
 import re
-import math
 import signal
 import argparse
-import datetime
 import platform
 import requests
 import textwrap
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
-from progressbar import ProgressBar, Bar, ETA, FileTransferSpeed, Percentage, DataSize
+from src.const import CATALOGURLS, DATPOSTFIXES, MYRIENTHTTPADDR, REQHEADERS
+from src.types import RomMeta
+from src.utils import download, exithandler, inputter, logger
 
-#Define constants
-#Myrient HTTP-server addresses
-MYRIENTHTTPADDR = 'https://myrient.erista.me/files/'
-#Catalog URLs, to parse out the catalog in use from DAT
-CATALOGURLS = {
-    'https://www.no-intro.org': 'No-Intro',
-    'http://redump.org/': 'Redump'
-}
-#Postfixes in DATs to strip away
-DATPOSTFIXES = [
-    ' (Retool)'
-]
-#Chunk sizes to download
-CHUNKSIZE = 8192
-#Headers to use in HTTP-requests
-REQHEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'
-}
-
-#Print output function
-def logger(str, color=None, rewrite=False):
-    colors = {'red': '\033[91m', 'green': '\033[92m', 'yellow': '\033[93m', 'cyan': '\033[96m'}
-    if rewrite:
-        print('\033[1A', end='\x1b[2K')
-    if color:
-        print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | {colors[color]}{str}\033[00m')
-    else:
-        print(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | {str}')
-
-#Input request function
-def inputter(str, color=None):
-    colors = {'red': '\033[91m', 'green': '\033[92m', 'yellow': '\033[93m', 'cyan': '\033[96m'}
-    if color:
-        val = input(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | {colors[color]}{str}\033[00m')
-    else:
-        val = input(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | {str}')
-    return val
-
-#Scale file size
-def scale1024(val):
-    prefixes=['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']
-    if val <= 0:
-        power = 0
-    else:
-        power = min(int(math.log(val, 2) / 10), len(prefixes) - 1)
-    scaled = float(val) / (2 ** (10 * power))
-    unit = prefixes[power]
-    return scaled, unit
-
-#Exit handler function
-def exithandler(signum, frame):
-    logger('Exiting script!', 'red')
-    exit()
 signal.signal(signal.SIGINT, exithandler)
 
 #Generate argument parser
@@ -94,11 +40,10 @@ args = parser.parse_args()
 #Init variables
 catalog = None
 collection = None
-wantedroms = []
-wantedfiles = []
-missingroms = []
-collectiondir = []
-availableroms = {}
+wantedroms: list[str] = []
+wantedfiles: list[RomMeta] = []
+missingroms: list[str] = []
+availableroms: dict[str, RomMeta] = {}
 foundcollections = []
 
 #Validate arguments
@@ -242,52 +187,8 @@ if not args.list:
     dlcounter = 0
     for wantedfile in wantedfiles:
         dlcounter += 1
-        resumedl = False
-        proceeddl = True
-        
-        if platform.system() == 'Linux':
-            localpath = f'{args.out}/{wantedfile["file"]}'
-        elif platform.system() == 'Windows':
-            localpath = f'{args.out}\{wantedfile["file"]}'
-        
-        resp = requests.get(wantedfile['url'], headers=REQHEADERS, stream=True)
-        remotefilesize = int(resp.headers.get('content-length'))
-        
-        if os.path.isfile(localpath):
-            localfilesize = int(os.path.getsize(localpath))
-            if localfilesize != remotefilesize:
-                resumedl = True
-            else:
-                proceeddl = False
-        
-        if proceeddl:
-            file = open(localpath, 'ab')
-            
-            size, unit = scale1024(remotefilesize)
-            pbar = ProgressBar(widgets=['\033[96m', Percentage(), ' | ', DataSize(), f' / {round(size, 1)} {unit}', ' ', Bar(marker='#'), ' ', ETA(), ' | ', FileTransferSpeed(), '\033[00m'], max_value=remotefilesize, redirect_stdout=True, max_error=False)
-            pbar.start()
-            
-            if resumedl:
-                logger(f'Resuming    {str(dlcounter).zfill(len(str(len(wantedfiles))))}/{len(wantedfiles)}: {wantedfile["name"]}', 'cyan')
-                pbar += localfilesize
-                headers = REQHEADERS
-                headers.update({'Range': f'bytes={localfilesize}-'})
-                resp = requests.get(wantedfile['url'], headers=headers, stream=True)
-                for data in resp.iter_content(chunk_size=CHUNKSIZE):
-                    file.write(data)
-                    pbar += len(data)
-            else:
-                logger(f'Downloading {str(dlcounter).zfill(len(str(len(wantedfiles))))}/{len(wantedfiles)}: {wantedfile["name"]}', 'cyan')
-                for data in resp.iter_content(chunk_size=CHUNKSIZE):
-                    file.write(data)
-                    pbar += len(data)
-            
-            file.close()
-            pbar.finish()
-            print('\033[1A', end='\x1b[2K')
-            logger(f'Downloaded  {str(dlcounter).zfill(len(str(len(wantedfiles))))}/{len(wantedfiles)}: {wantedfile["name"]}', 'green', True)
-        else:
-            logger(f'Already DLd {str(dlcounter).zfill(len(str(len(wantedfiles))))}/{len(wantedfiles)}: {wantedfile["name"]}', 'green')
+        download(args.out, wantedfile, dlcounter, len(wantedfiles))
+
     logger('Downloading complete!', 'green', False)
 
 #Output missing ROMs, if any

@@ -14,7 +14,7 @@ Resuming downloads after an interruption should work, however this functionality
 I've also tested this only on Linux, but I suppose it should work on Windows also.
 
 ## Requirements
-The script uses external Beautiful Soup, Progress Bar and Requests -libraries, which can be installed using:
+The script uses external Beautiful Soup, Progress Bar, Requests, and Retry -libraries, which can be installed using:
 ```
 pip3 install -r requirements.txt
 ```
@@ -25,7 +25,12 @@ python3 -m pip install -r requirements.txt
 
 ## Usage
 ```
-python3 dltool.py -i romset.dat -o /data/roms
+python3 src/dltool.py -i romset.dat -o /data/roms
+```
+
+### Within docker
+```
+docker run --rm -it -v /srv:/srv $(docker build -q .) -i /srv/romset.dat -o /srv/roms
 ```
 
 ### Arguments
