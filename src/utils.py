@@ -6,8 +6,8 @@ import requests
 from progressbar import ProgressBar, Bar, ETA, FileTransferSpeed, Percentage, DataSize
 from retry import retry
 
-from src.const import CHUNKSIZE, REQHEADERS
-from src.types import RomMeta
+from const import CHUNKSIZE, REQHEADERS
+from ctype import RomMeta
 
 #Print output function
 def logger(str: str, color=None, rewrite=False):

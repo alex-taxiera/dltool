@@ -7,9 +7,10 @@ import requests
 import textwrap
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
-from src.const import CATALOGURLS, DATPOSTFIXES, MYRIENTHTTPADDR, REQHEADERS
-from src.types import RomMeta
-from src.utils import download, exithandler, inputter, logger
+
+from const import CATALOGURLS, DATPOSTFIXES, MYRIENTHTTPADDR, REQHEADERS
+from ctype import RomMeta
+from utils import download, exithandler, inputter, logger
 
 signal.signal(signal.SIGINT, exithandler)
 

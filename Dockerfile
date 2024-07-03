@@ -8,6 +8,6 @@ COPY requirements.txt ./
 
 RUN pip install -r requirements.txt
 
-COPY ./src/ .
+COPY ./src/ ./src/
 
-ENTRYPOINT ["python", "./src/dltool.py"]
+ENTRYPOINT ["python", "src/dltool.py"]
